@@ -149,14 +149,18 @@ public class SlotBehaviour : MonoBehaviour
 
     [SerializeField]
     private SocketIOManager SocketManager;
+    [SerializeField]
+    private UIManager uiManager;
 
     Coroutine AutoSpinRoutine = null;
     Coroutine tweenroutine;
     bool IsAutoSpin = false;
     bool IsSpinning = false;
     internal bool IsHoldSpin = false;
-
+    private int BetCounter = 0;
+    private int LineCounter = 0;
     internal int linecounter = 20;
+    internal bool CheckPopups = false;
 
     private void Start()
     {
@@ -273,18 +277,17 @@ public class SlotBehaviour : MonoBehaviour
     {
         StartSlots();
     }
+
+
+
+
+
+
    
-
-
-
-
-
-    //Fetch Lines from backend
-    internal void FetchLines(string x_value, string y_value, int LineID, int count)
+    internal void FetchLines(string LineVal, int count)
     {
-        x_string.Add(LineID, x_value);
-        y_string.Add(LineID, y_value);
-        StaticLine_Texts[count].text = LineID.ToString();
+        y_string.Add(count + 1, LineVal);
+        StaticLine_Texts[count].text = (count + 1).ToString();
         StaticLine_Objects[count].SetActive(true);
     }
 
@@ -305,7 +308,8 @@ public class SlotBehaviour : MonoBehaviour
         List<int> y_points = null;
         x_points = x_string[LineID]?.Split(',')?.Select(Int32.Parse)?.ToList();
         y_points = y_string[LineID]?.Split(',')?.Select(Int32.Parse)?.ToList();
-        PayCalculator.GeneratePayoutLinesBackend(x_points, y_points, x_points.Count, true);
+        //PayCalculator.GeneratePayoutLinesBackend(x_points, y_points, x_points.Count, true);
+        PayCalculator.GeneratePayoutLinesBackend(y_points, y_points.Count, true);
     }
 
     //Destroy Static Lines from button hovers
@@ -433,7 +437,17 @@ public class SlotBehaviour : MonoBehaviour
     {
         PopulateSlot(myvalues, number);
     }
-
+    internal void SetInitialUI()
+    {
+        BetCounter = SocketManager.initialData.Bets.Count - 1;
+        LineCounter = SocketManager.initialData.LinesCount.Count - 1;
+        if (TotalBet_text) TotalBet_text.text = SocketManager.initialData.Bets[BetCounter].ToString();
+        if (Lines_text) Lines_text.text = SocketManager.initialData.LinesCount[LineCounter].ToString();
+        if (TotalWin_text) TotalWin_text.text = SocketManager.playerdata.haveWon.ToString("f2");
+        if (Balance_text) Balance_text.text = SocketManager.playerdata.Balance.ToString("f2");
+        //_bonusManager.PopulateWheel(SocketManager.bonusdata);
+        uiManager.InitialiseUIData(SocketManager.initUIData.AbtLogo.link, SocketManager.initUIData.AbtLogo.logoSprite, SocketManager.initUIData.ToULink, SocketManager.initUIData.PopLink, SocketManager.initUIData.paylines, SocketManager.initUIData.spclSymbolTxt);
+    }
     //reset the layout after populating the slots
     internal void LayoutReset(int number)
     {
@@ -460,6 +474,7 @@ public class SlotBehaviour : MonoBehaviour
         }
         if (mainContainer_RT) LayoutRebuilder.ForceRebuildLayoutImmediate(mainContainer_RT);
         tweenHeight = (values.Count * IconSizeFactor) - 280;
+        GenerateMatrix(number);
     }
 
     //function to populate animation sprites accordingly
@@ -600,14 +615,8 @@ public class SlotBehaviour : MonoBehaviour
         }
         PayCalculator.ResetLines();
         tweenroutine = StartCoroutine(TweenRoutine());
-        for (int i = 0; i < Tempimages.Count; i++)
-        {
-            Tempimages[i].slotImages.Clear();
-            Tempimages[i].slotImages.TrimExcess();
-        }
     }
 
-    //manage the Routine for spinning of the slots
     private IEnumerator TweenRoutine()
     {
         IsSpinning = true;
@@ -618,34 +627,93 @@ public class SlotBehaviour : MonoBehaviour
             yield return new WaitForSeconds(0.1f);
         }
 
-        SocketManager.AccumulateResult();
+        double bet = 0;
+        double balance = 0;
+        try
+        {
+            bet = double.Parse(TotalBet_text.text);
+        }
+        catch (Exception e)
+        {
+            Debug.Log("Error while conversion " + e.Message);
+        }
+
+        try
+        {
+            balance = double.Parse(Balance_text.text);
+        }
+        catch (Exception e)
+        {
+            Debug.Log("Error while conversion " + e.Message);
+        }
+
+        balance = balance - bet;
+
+        if (Balance_text) Balance_text.text = balance.ToString("f2");
+
+        SocketManager.AccumulateResult(bet);
+
+        yield return new WaitUntil(() => SocketManager.isResultdone);
+
+
+        for (int j = 0; j < SocketManager.resultData.ResultReel.Count; j++)
+        {
+            List<int> resultnum = SocketManager.resultData.FinalResultReel[j]?.Split(',')?.Select(Int32.Parse)?.ToList();
+            for (int i = 0; i < 5; i++)
+            {
+                if (images[i].slotImages[images[i].slotImages.Count - 5 + j]) images[i].slotImages[images[i].slotImages.Count - 5 + j].sprite = myImages[resultnum[i]];
+                PopulateAnimationSprites(images[i].slotImages[images[i].slotImages.Count - 5 + j].gameObject.GetComponent<ImageAnimation>(), resultnum[i]);
+            }
+        }
+
         yield return new WaitForSeconds(0.5f);
-        List<int> resultnum = SocketManager.tempresult.StopList?.Split(',')?.Select(Int32.Parse)?.ToList();
 
         for (int i = 0; i < numberOfSlots; i++)
         {
-            yield return StopTweening(resultnum[i] + 3, Slot_Transform[i], i);
+            yield return StopTweening(5, Slot_Transform[i], i);
         }
 
         yield return new WaitForSeconds(0.3f);
-        GenerateMatrix(SocketManager.tempresult.StopList);
-        CheckPayoutLineBackend(SocketManager.tempresult.resultLine, SocketManager.tempresult.x_animResult, SocketManager.tempresult.y_animResult);
+        CheckPayoutLineBackend(SocketManager.resultData.linesToEmit, SocketManager.resultData.FinalsymbolsToEmit);
         KillAllTweens();
+
+
+        CheckPopups = true;
+
+        if (TotalWin_text) TotalWin_text.text = SocketManager.playerdata.haveWon.ToString("f2");
+
+        if (Balance_text) Balance_text.text = SocketManager.playerdata.Balance.ToString("f2");
+
+        else if (SocketManager.resultData.WinAmout >= bet * 5 && SocketManager.resultData.WinAmout < bet * 10)
+        {
+            uiManager.PopulateWin(1, SocketManager.resultData.WinAmout);
+        }
+        else if (SocketManager.resultData.WinAmout >= bet * 10 && SocketManager.resultData.WinAmout < bet * 15)
+        {
+            uiManager.PopulateWin(2, SocketManager.resultData.WinAmout);
+        }
+        else if (SocketManager.resultData.WinAmout >= bet * 15)
+        {
+            uiManager.PopulateWin(3, SocketManager.resultData.WinAmout);
+        }
+       
+        //yield return new WaitUntil(() => !CheckPopups);
         if (!IsAutoSpin)
         {
             ToggleButtonGrp(true);
             IsSpinning = false;
-
         }
         else
         {
-
-
+            yield return new WaitForSeconds(2f);
             IsSpinning = false;
-            yield return new WaitForSeconds(5f);
         }
+       
     }
-
+    internal void CallCloseSocket()
+    {
+        SocketManager.CloseWebSocket();
+    }
     void ToggleButtonGrp(bool toggle)
     {
 
@@ -662,9 +730,25 @@ public class SlotBehaviour : MonoBehaviour
     //start the icons animation
     private void StartGameAnimation(GameObject animObjects)
     {
-        ImageAnimation temp = animObjects.GetComponent<ImageAnimation>();
-        temp.StartAnimation();
-        TempList.Add(temp);
+        //ImageAnimation temp = animObjects.GetComponent<ImageAnimation>();
+        //temp.StartAnimation();
+        //TempList.Add(temp);
+        int i = animObjects.transform.childCount;
+
+        if (i > 0)
+        {
+            ImageAnimation temp = animObjects.GetComponent<ImageAnimation>();
+            //animObjects.transform.GetChild(0).gameObject.SetActive(true);
+
+            temp.StartAnimation();
+
+            TempList.Add(temp);
+        }
+        else
+        {
+            animObjects.GetComponent<ImageAnimation>().StartAnimation();
+
+        }
     }
 
     //stop the icons animation
@@ -676,55 +760,75 @@ public class SlotBehaviour : MonoBehaviour
         }
     }
 
-    //generate the payout lines generated 
-    private void CheckPayoutLineBackend(List<int> LineId, List<string> x_AnimString, List<string> y_AnimString)
+    private void CheckPayoutLineBackend(List<int> LineId, List<string> points_AnimString)
     {
-        List<int> x_points = null;
         List<int> y_points = null;
-        List<int> x_anim = null;
-        List<int> y_anim = null;
+        List<int> points_anim = null;
         if (LineId.Count > 0)
         {
             if (audioController) audioController.PlayWLAudio("win");
 
             for (int i = 0; i < LineId.Count; i++)
             {
-                x_points = x_string[LineId[i]]?.Split(',')?.Select(Int32.Parse)?.ToList();
-                y_points = y_string[LineId[i]]?.Split(',')?.Select(Int32.Parse)?.ToList();
-                PayCalculator.GeneratePayoutLinesBackend(x_points, y_points, x_points.Count);
+                y_points = y_string[LineId[i] + 1]?.Split(',')?.Select(Int32.Parse)?.ToList();
+                PayCalculator.GeneratePayoutLinesBackend(y_points, y_points.Count);
             }
 
-            for (int i = 0; i < x_AnimString.Count; i++)
-            {
-                x_anim = x_AnimString[i]?.Split(',')?.Select(Int32.Parse)?.ToList();
-                y_anim = y_AnimString[i]?.Split(',')?.Select(Int32.Parse)?.ToList();
-
-                for (int k = 0; k < x_anim.Count; k++)
+            //if (jackpot > 0)
+            //{
+            //    for (int i = 0; i < Tempimages.Count; i++)
+            //    {
+            //        for (int k = 0; k < Tempimages[i].slotImages.Count; k++)
+            //        {
+            //            StartGameAnimation(Tempimages[i].slotImages[k].gameObject);
+            //        }
+            //    }
+            //}
+            //else
+            //{
+                for (int i = 0; i < points_AnimString.Count; i++)
                 {
-                    StartGameAnimation(Tempimages[x_anim[k]].slotImages[y_anim[k]].gameObject);
+                    points_anim = points_AnimString[i]?.Split(',')?.Select(Int32.Parse)?.ToList();
+
+                    for (int k = 0; k < points_anim.Count; k++)
+                    {
+                        if (points_anim[k] >= 10)
+                        {
+                            StartGameAnimation(Tempimages[(points_anim[k] / 10) % 10].slotImages[points_anim[k] % 10].gameObject);
+                        }
+                        else
+                        {
+                            StartGameAnimation(Tempimages[0].slotImages[points_anim[k]].gameObject);
+                        }
+                    }
                 }
-            }
+            //}
         }
-        else {
+        else
+        {
 
             if (audioController) audioController.PlayWLAudio("lose");
         }
-          
-
-        
     }
 
     //generate the result matrix
-    private void GenerateMatrix(string stopList)
-    {
-        List<int> numbers = stopList?.Split(',')?.Select(Int32.Parse)?.ToList();
+    //private void GenerateMatrix(string stopList)
+    //{
+    //    List<int> numbers = stopList?.Split(',')?.Select(Int32.Parse)?.ToList();
 
-        for (int i = 0; i < numbers.Count; i++)
+    //    for (int i = 0; i < numbers.Count; i++)
+    //    {
+    //        for (int s = 0; s < verticalVisibility; s++)
+    //        {
+    //            Tempimages[i].slotImages.Add(images[i].slotImages[(images[i].slotImages.Count - (numbers[i] + 3)) + s]);
+    //        }
+    //    }
+    //}
+    private void GenerateMatrix(int value)
+    {
+        for (int j = 0; j < 3; j++)
         {
-            for (int s = 0; s < verticalVisibility; s++)
-            {
-                Tempimages[i].slotImages.Add(images[i].slotImages[(images[i].slotImages.Count - (numbers[i] + 3)) + s]);
-            }
+            Tempimages[value].slotImages.Add(images[value].slotImages[images[value].slotImages.Count - 5 + j]);
         }
     }
 
