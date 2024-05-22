@@ -273,12 +273,8 @@ public class GameData
     public List<int> linesToEmit { get; set; }
     public List<List<string>> symbolsToEmit { get; set; }
     public double WinAmout { get; set; }
-   // public double freeSpins { get; set; }
     public List<string> FinalsymbolsToEmit { get; set; }
     public List<string> FinalResultReel { get; set; }
-    //public double jackpot { get; set; }
-    //public bool isBonus { get; set; }
-    //public double BonusStopIndex { get; set; }
 }
 
 [Serializable]
@@ -287,7 +283,6 @@ public class Message
     public GameData GameData { get; set; }
     public UIData UIData { get; set; }
     public PlayerData PlayerData { get; set; }
-   // public List<string> BonusData { get; set; }
 }
 
 [Serializable]

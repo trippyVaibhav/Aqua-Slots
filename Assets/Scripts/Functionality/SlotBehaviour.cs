@@ -445,7 +445,6 @@ public class SlotBehaviour : MonoBehaviour
         if (Lines_text) Lines_text.text = SocketManager.initialData.LinesCount[LineCounter].ToString();
         if (TotalWin_text) TotalWin_text.text = SocketManager.playerdata.haveWon.ToString("f2");
         if (Balance_text) Balance_text.text = SocketManager.playerdata.Balance.ToString("f2");
-        //_bonusManager.PopulateWheel(SocketManager.bonusdata);
         uiManager.InitialiseUIData(SocketManager.initUIData.AbtLogo.link, SocketManager.initUIData.AbtLogo.logoSprite, SocketManager.initUIData.ToULink, SocketManager.initUIData.PopLink, SocketManager.initUIData.paylines, SocketManager.initUIData.spclSymbolTxt);
     }
     //reset the layout after populating the slots
@@ -673,7 +672,6 @@ public class SlotBehaviour : MonoBehaviour
             yield return StopTweening(5, Slot_Transform[i], i);
         }
 
-        yield return new WaitForSeconds(0.3f);
         CheckPayoutLineBackend(SocketManager.resultData.linesToEmit, SocketManager.resultData.FinalsymbolsToEmit);
         KillAllTweens();
 
@@ -774,18 +772,6 @@ public class SlotBehaviour : MonoBehaviour
                 PayCalculator.GeneratePayoutLinesBackend(y_points, y_points.Count);
             }
 
-            //if (jackpot > 0)
-            //{
-            //    for (int i = 0; i < Tempimages.Count; i++)
-            //    {
-            //        for (int k = 0; k < Tempimages[i].slotImages.Count; k++)
-            //        {
-            //            StartGameAnimation(Tempimages[i].slotImages[k].gameObject);
-            //        }
-            //    }
-            //}
-            //else
-            //{
                 for (int i = 0; i < points_AnimString.Count; i++)
                 {
                     points_anim = points_AnimString[i]?.Split(',')?.Select(Int32.Parse)?.ToList();
@@ -802,7 +788,7 @@ public class SlotBehaviour : MonoBehaviour
                         }
                     }
                 }
-            //}
+          
         }
         else
         {
@@ -811,19 +797,6 @@ public class SlotBehaviour : MonoBehaviour
         }
     }
 
-    //generate the result matrix
-    //private void GenerateMatrix(string stopList)
-    //{
-    //    List<int> numbers = stopList?.Split(',')?.Select(Int32.Parse)?.ToList();
-
-    //    for (int i = 0; i < numbers.Count; i++)
-    //    {
-    //        for (int s = 0; s < verticalVisibility; s++)
-    //        {
-    //            Tempimages[i].slotImages.Add(images[i].slotImages[(images[i].slotImages.Count - (numbers[i] + 3)) + s]);
-    //        }
-    //    }
-    //}
     private void GenerateMatrix(int value)
     {
         for (int j = 0; j < 3; j++)

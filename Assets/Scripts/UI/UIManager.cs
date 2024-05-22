@@ -207,15 +207,6 @@ public class UIManager : MonoBehaviour
             case 1:
                 if (Win_Image) Win_Image.sprite = BigWin_Sprite;
                 break;
-            //case 2:
-            //    if (Win_Image) Win_Image.sprite = HugeWin_Sprite;
-            //    break;
-            //case 3:
-            //    if (Win_Image) Win_Image.sprite = MegaWin_Sprite;
-            //    break;
-            //case 4:
-            //    if (Win_Image) Win_Image.sprite = Jackpot_Sprite;
-            //    break;
         }
 
         StartPopupAnim(amount);
@@ -224,8 +215,6 @@ public class UIManager : MonoBehaviour
     private void StartFreeSpins(int spins)
     {
         if (MainPopup_Object) MainPopup_Object.SetActive(false);
-       // if (FreeSpinPopup_Object) FreeSpinPopup_Object.SetActive(false);
-        //slotManager.FreeSpin(spins);
     }
 
     internal void FreeSpinProcess(int spins)
