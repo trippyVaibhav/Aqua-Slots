@@ -117,7 +117,7 @@ public class SlotBehaviour : MonoBehaviour
     [SerializeField]
     private TMP_Text TotalWin_text;
     [SerializeField]
-    private TMP_Text Bet_text;
+    private TMP_Text BetPerLine_text;
 
 
 
@@ -171,9 +171,9 @@ public class SlotBehaviour : MonoBehaviour
         }
 
         if (BetPlus_Button) BetPlus_Button.onClick.RemoveAllListeners();
-        if (BetPlus_Button) BetPlus_Button.onClick.AddListener(delegate { ChangeBetText(true); });
+        if (BetPlus_Button) BetPlus_Button.onClick.AddListener(delegate { OnBetOne(true); });
         if (BetMinus_Button) BetMinus_Button.onClick.RemoveAllListeners();
-        if (BetMinus_Button) BetMinus_Button.onClick.AddListener(delegate { ChangeBetText(false); });
+        if (BetMinus_Button) BetMinus_Button.onClick.AddListener(delegate { OnBetOne(false); });
 
         if (LinePlus_Button) LinePlus_Button.onClick.RemoveAllListeners();
         if (LinePlus_Button) LinePlus_Button.onClick.AddListener(delegate { ChangeLine(true);});
@@ -321,7 +321,8 @@ public class SlotBehaviour : MonoBehaviour
     private void MaxBet()
     {
         if (audioController) audioController.PlayButtonAudio();
-        if (TotalBet_text) TotalBet_text.text = "99999";
+        BetCounter = SocketManager.initialData.Bets.Count - 1;
+        if (TotalBet_text) TotalBet_text.text = SocketManager.initialData.Bets[BetCounter].ToString();
     }
 
     internal void ChangeLine(bool IncDec)
@@ -373,54 +374,46 @@ public class SlotBehaviour : MonoBehaviour
         }
     }
 
-    private void ChangeBetText(bool IncDec)
+    void OnBetOne(bool IncDec)
     {
         if (audioController) audioController.PlayButtonAudio();
-        double currentline = 1;
-        try
+
+        if (BetCounter < SocketManager.initialData.Bets.Count - 1)
         {
-            currentline = double.Parse(Bet_text.text);
+            BetCounter++;
         }
-        catch (Exception e)
+        else
         {
-            Debug.Log("parse error " + e);
+            BetCounter = 0;
         }
+        Debug.Log("Index:" + BetCounter);
+
+        if (TotalBet_text) TotalBet_text.text = SocketManager.initialData.Bets[BetCounter].ToString();
+        if (BetPerLine_text) BetPerLine_text.text = SocketManager.initialData.Bets[BetCounter].ToString();
+    }
+
+    private void ChangeBet(bool IncDec)
+    {
+        if (audioController) audioController.PlayButtonAudio();
         if (IncDec)
         {
-            if (currentline < 99999)
+            if (BetCounter < SocketManager.initialData.Bets.Count - 1)
             {
-                currentline += 100;
-            }
-            else
-            {
-                currentline = 99999;
-            }
-
-            if (currentline > 99999)
-            {
-                currentline = 99999;
+                BetCounter++;
             }
         }
         else
         {
-            if (currentline > 0)
+            if (BetCounter > 0)
             {
-                currentline -= 100;
-            }
-            else
-            {
-                currentline = 0;
-            }
-
-            if (currentline < 0)
-            {
-                currentline = 0;
+                BetCounter--;
             }
         }
 
-        if (Bet_text) Bet_text.text = currentline.ToString();
-
+        if (TotalBet_text) TotalBet_text.text = SocketManager.initialData.Bets[BetCounter].ToString();
     }
+
+    
 
 
     //just for testing purposes delete on production
@@ -479,6 +472,8 @@ public class SlotBehaviour : MonoBehaviour
     //function to populate animation sprites accordingly
     private void PopulateAnimationSprites(ImageAnimation animScript, int val)
     {
+        animScript.textureArray.Clear();
+        animScript.textureArray.TrimExcess();
         switch (val)
         {
             case 0:
@@ -710,7 +705,7 @@ public class SlotBehaviour : MonoBehaviour
     }
     internal void CallCloseSocket()
     {
-        SocketManager.CloseWebSocket();
+        SocketManager.CloseSocket();
     }
     void ToggleButtonGrp(bool toggle)
     {
